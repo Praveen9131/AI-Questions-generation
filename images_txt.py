@@ -176,7 +176,7 @@ def generate_content():
         logger.error(f"Error generating content: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
-@app.route('/image/image/<image_key>', methods=['GET'])
+@app.route('/image/<image_key>', methods=['GET'])
 def get_image(image_key):
     """Serve an image from in-memory storage."""
     if image_key in image_store1:
