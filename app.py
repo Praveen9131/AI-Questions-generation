@@ -20,9 +20,11 @@ from image_to_image_mcq import (
 )
 from images_txt import generate_custom_content1, image_store1
 from image_txt_checkbox import generate_custom_content11, image_store11
+from sequence import generate_sequence_quiz
 
 # Load environment variables
 load_dotenv()
+KEY = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 
@@ -65,6 +67,8 @@ def generate_quiz_route():
             response = generate_quizc(number, subject, tone)
         elif quiz_type == 300:
             response = generate_quiz1(number, subject, tone)
+        elif quiz_type == 400:
+            response = generate_sequence_quiz(number, subject, tone)
         elif quiz_type == 500:
             response = generate_custom_content1(number, subject, tone)
         elif quiz_type == 501:
