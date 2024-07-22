@@ -11,7 +11,8 @@ from simple_checkox import generate_quizc
 from fill_in_the_blanks import generate_quiz1
 from image_to_image_mcq import download_and_resize_image as download_and_resize_image2, generate_image as generate_image2, generate_image_options, generate_mcq_with_image_options, generate_custom_content, image_store
 from images_txt import generate_custom_content1, image_store1
-from image_txt_checkbox import generate_custom_content11 ,image_store11
+from images_txt_checkbox import generate_custom_content11 ,image_store11
+from sequence import generate_sequence_quiz
 # Load environment variables
 load_dotenv()
 
@@ -43,6 +44,8 @@ def generate_quiz_route():
         response = generate_quizc(number, subject, tone)  # Checkbox type
     elif quiz_type == 300:
         response = generate_quiz1(number, subject, tone)  # Fill in the blanks
+    elif quiz_type == 400:
+        response = generate_sequence_quiz(number, subject, tone)
     elif quiz_type == 500:
         response = generate_custom_content1(number, subject, tone) # image with txt checkbox
     elif quiz_type == 501:
