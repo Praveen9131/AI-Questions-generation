@@ -4,6 +4,7 @@
 ## simple_checkbox.py -----Checkbox type                     200
 ## fill_in_the_blanks.py ------  fill in the blanks          300
 ## image_txt.py -----------image withmcq text type           500
+## Sequence.py ------------sequece type txt                  400
 ## image to image mcq .py ---------image with image mcq type 600 
 
 # AI Question Generator
