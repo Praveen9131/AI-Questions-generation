@@ -54,17 +54,15 @@ def generate_quiz1(number, subject, tone):
     create a quiz  of {number}  questions for {subject} students in {tone} tone. 
     Make sure the questions are not repeated and check all the questions to be conforming the text as well.
     Make sure to format your response like  RESPONSE_JSON below  and use it as a guide. \
-    Ensure to make {number} fill in the blanks question in th forrmate of above variable 
-      ,please give me in this format RESPONSE_JSON format of arrayand use the keywords only question,options ,answershow me first question then options then answer
-      dont generate question numbers 
-      [{
-          "question____________________continue______?"
-          
-          "answer" 
-      }]use only this format dont use any other format, dont give any options,           
-         follow only this format
-            // More questions as needed...
-      
+    Ensure to make {number} fill in the blanks question in the format of the variable above 
+    ,please give me in this format RESPONSE_JSON format of array and use the keywords only question, options, answer. Show me the first question then options then answer. 
+    Each question should have four blanks. 
+    Don't generate question numbers.
+    ["
+        "question": "question text with ________ blanks ________ text________text____",
+        "answer": "answer text"
+    ]
+    Use only this format, don't use any other format, and don't give any options.       
     """
     TEMPLATE2="""
     You are an expert english grammarian and writer. Given a Multiple Choice Quiz for {subject} students.\
