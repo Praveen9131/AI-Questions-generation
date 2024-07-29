@@ -21,7 +21,7 @@ from image_to_image_mcq import (
 from images_txt import generate_custom_content1, image_store1
 from image_txt_checkbox import generate_custom_content11, image_store11
 from sequence import generate_sequence_quiz
-
+from image_checkbox import generate_custom_content_checkbox,image_store_checkbox
 # Load environment variables
 load_dotenv()
 KEY = os.getenv("OPENAI_API_KEY")
@@ -75,6 +75,8 @@ def generate_quiz_route():
             response = generate_custom_content11(number, subject, tone)
         elif quiz_type == 600:
             response = generate_custom_content(number, subject, tone)
+        elif quiz_type == 601:
+            response = generate_custom_content_checkbox(number, subject, tone)
         else:
             raise ValueError("Invalid quiz type, please enter a correct quiz_type")
 
@@ -102,6 +104,11 @@ def get_image(image_key):
                 BytesIO(image_store[image_key].getvalue()),
                 mimetype='image/png'
             )
+        elif quiz_type == 601 and image_key in image_store_checkbox:
+            return send_file(
+                BytesIO(image_store_checkbox[image_key].getvalue()),
+                mimetype='image/png'
+            )
         else:
             raise ValueError("Image with key not found")
 
@@ -124,6 +131,10 @@ def list_all_images():
             'image_store11': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=501, _external=True)}
                 for key in image_store11.keys()
+            ],
+            'image_store_checkbox': [
+                {"key": key, "url": url_for('get_image', image_key=key, quiz_type=601, _external=True)}
+                for key in image_store_checkbox.keys()
             ]
         }
         return jsonify(images)
