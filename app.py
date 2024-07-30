@@ -172,6 +172,10 @@ def delete_images():
             keys = list(image_store.keys())
             for key in keys[start_index:end_index + 1]:
                 del image_store[key]
+        elif quiz_type == 601:
+            keys = list(image_store_checkbox.keys())
+            for key in keys[start_index:end_index + 1]:
+                del image_store_checkbox[key]
         else:
             raise ValueError("Invalid quiz type for deletion")
         
