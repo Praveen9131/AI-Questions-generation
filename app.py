@@ -22,6 +22,7 @@ from images_txt import generate_custom_content1, image_store1
 from image_txt_checkbox import generate_custom_content11, image_store11
 from sequence import generate_sequence_quiz
 from image_checkbox import generate_custom_content_checkbox,image_store_checkbox
+from True_False_Radio_Btn_with_Image_Text_Question import generate_custom_content_true, image_store_true
 # Load environment variables
 load_dotenv()
 KEY = os.getenv("OPENAI_API_KEY")
@@ -77,6 +78,8 @@ def generate_quiz_route():
             response = generate_custom_content(number, subject, tone)
         elif quiz_type == 601:
             response = generate_custom_content_checkbox(number, subject, tone)
+        elif quiz_type == 700:
+            response = generate_custom_content_true(number, subject, tone)
         else:
             raise ValueError("Invalid quiz type, please enter a correct quiz_type")
 
@@ -99,14 +102,19 @@ def get_image(image_key):
                 BytesIO(image_store11[image_key].getvalue()),
                 mimetype='image/png'
             )
-        elif quiz_type == 600 and image_key in image_store:
+        elif quiz_type == 600 and image_key in image_store_true:
             return send_file(
-                BytesIO(image_store[image_key].getvalue()),
+                BytesIO(image_store_true[image_key].getvalue()),
                 mimetype='image/png'
             )
         elif quiz_type == 601 and image_key in image_store_checkbox:
             return send_file(
                 BytesIO(image_store_checkbox[image_key].getvalue()),
+                mimetype='image/png'
+            )
+        elif quiz_type == 700 and image_key in image_store_true:
+            return send_file(
+                BytesIO(image_store_true[image_key].getvalue()),
                 mimetype='image/png'
             )
         else:
@@ -122,7 +130,7 @@ def list_all_images():
         images = {
             'image_store': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=600, _external=True)}
-                for key in image_store.keys()
+                for key in image_store_true.keys()
             ],
             'image_store1': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=500, _external=True)}
@@ -135,6 +143,10 @@ def list_all_images():
             'image_store_checkbox': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=601, _external=True)}
                 for key in image_store_checkbox.keys()
+            ],
+           'image_store_true': [
+                {"key": key, "url": url_for('get_image', image_key=key, quiz_type=700, _external=True)}
+                for key in image_store_true.keys()
             ]
         }
         return jsonify(images)
@@ -169,13 +181,17 @@ def delete_images():
             for key in keys[start_index:end_index + 1]:
                 del image_store11[key]
         elif quiz_type == 600:
-            keys = list(image_store.keys())
+            keys = list(image_store_true.keys())
             for key in keys[start_index:end_index + 1]:
-                del image_store[key]
+                del image_store_true[key]
         elif quiz_type == 601:
             keys = list(image_store_checkbox.keys())
             for key in keys[start_index:end_index + 1]:
                 del image_store_checkbox[key]
+        elif quiz_type == 700:
+            keys = list(image_store_true.keys())
+            for key in keys[start_index:end_index + 1]:
+                del image_store_true[key]
         else:
             raise ValueError("Invalid quiz type for deletion")
         
