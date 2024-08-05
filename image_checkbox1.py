@@ -218,3 +218,4 @@ def serve_image(filename):
         return send_file(image_data, mimetype='image/png')
     return jsonify({"error": "Image not found"}), 404
 
+#praveen
