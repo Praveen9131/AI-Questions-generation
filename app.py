@@ -21,7 +21,7 @@ from image_to_image_mcq import (
 from images_txt import generate_custom_content1, image_store1
 from image_txt_checkbox import generate_custom_content11, image_store11
 from sequence import generate_sequence_quiz
-from image_checkbox import generate_custom_content_checkbox,image_store_checkbox
+from image_checkbox1 import generate_custom_content_checkbox,image_store_checkbox
 from True_False_Radio_Btn_with_Image_Text_Question import generate_custom_content_true, image_store_true
 # Load environment variables
 load_dotenv()

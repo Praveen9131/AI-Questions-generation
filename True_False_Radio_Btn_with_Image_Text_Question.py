@@ -126,7 +126,7 @@ def generate_mcq_with_text_options(subject: str, tone: str):
         return {"error": "Failed to generate MCQ"}
 
 
-def generate_custom_content_true(number, subject, tone):
+def generate_custom_content_true(number, subject, tone, max_retries=3):
     """Generate custom content based on user-provided parameters."""
     try:
         if number < 1 or number > 10:
@@ -135,8 +135,17 @@ def generate_custom_content_true(number, subject, tone):
         images_and_questions = []
         for _ in range(number):
             image_prompt = f"High-quality, detailed illustration representing the subject: {subject} in a {tone} tone"
-            question_image_url = generate_image(image_prompt)
-            if not question_image_url:
+            retries = 0
+            question_image_url = None
+
+            # Retry loop for image generation
+            while retries < max_retries:
+                question_image_url = generate_image(image_prompt)
+                if question_image_url and question_image_url != "placeholder_image_url":
+                    break
+                retries += 1
+
+            if not question_image_url or question_image_url == "placeholder_image_url":
                 question_image_url = "placeholder_image_url"
 
             mcq_with_text = generate_mcq_with_text_options(subject, tone)
@@ -156,6 +165,7 @@ def generate_custom_content_true(number, subject, tone):
     except Exception as e:
         logger.error(f"Error generating custom content: {e}")
         return {"error": "Internal server error"}, 500
+
 
 @app.route('/custom', methods=['POST'])
 def custom_content():
