@@ -21,6 +21,7 @@ from image_to_image_mcq import (
 from images_txt import generate_custom_content1, image_store1
 from image_txt_checkbox import generate_custom_content11, image_store11
 from sequence import generate_sequence_quiz
+from image_checkbox import generate_custom_content_checkbox1,image_store_checkbox1
 from image_checkbox1 import generate_custom_content_checkbox, image_store_checkbox
 from True_False_Radio_Btn_with_Image_Text_Question import generate_custom_content_true, image_store_true
 from image_radio_button import generate_custom_content_radio , image_store_radio
@@ -93,7 +94,9 @@ def generate_quiz_route():
         elif quiz_type == 600:
             response = generate_custom_content(number, subject, tone)
         elif quiz_type == 601:
-            response = generate_custom_content_checkbox(number, subject, tone)
+            response = generate_custom_content_checkbox(number, subject, tone)#image checkbox
+        elif quiz_type == 602:
+            response = generate_custom_content_checkbox1(number, subject, tone)
         elif quiz_type == 700:
             response = generate_custom_content_true(number, subject, tone)
         elif quiz_type == 701:
@@ -101,10 +104,10 @@ def generate_quiz_route():
         else:
             raise ValueError("Invalid quiz type, please enter a correct quiz_type")
 
-        return jsonify(response)
-    except Exception as e:
-        app.logger.error(str(e))
-        return jsonify({"error": str(e)}), 500
+        return jsonify(response) 
+    except Exception as e: 
+        app.logger.error(str(e)) 
+        return jsonify({"error": str(e)}), 500 
 
 @app.route('/image/<image_key>', methods=['GET'])
 def get_image(image_key):
@@ -128,6 +131,11 @@ def get_image(image_key):
         elif quiz_type == 601 and image_key in image_store_checkbox:
             return send_file(
                 BytesIO(image_store_checkbox[image_key].getvalue()),
+                mimetype='image/png'
+            )
+        elif quiz_type == 602 and image_key in image_store_checkbox:
+            return send_file(
+                BytesIO(image_store_checkbox1[image_key].getvalue()),
                 mimetype='image/png'
             )
         elif quiz_type == 700 and image_key in image_store_true:
@@ -166,6 +174,10 @@ def list_all_images():
             'image_store_checkbox': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=601, _external=True)}
                 for key in image_store_checkbox.keys()
+            ],
+            'image_store_checkbox1': [
+                {"key": key, "url": url_for('get_image', image_key=key, quiz_type=602, _external=True)}
+                for key in image_store_checkbox1.keys()
             ],
             'image_store_true': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=700, _external=True)}
@@ -215,6 +227,10 @@ def delete_images():
             keys = list(image_store_checkbox.keys())
             for key in keys[start_index:end_index + 1]:
                 del image_store_checkbox[key]
+        elif quiz_type == 602:
+            keys = list(image_store_checkbox1.keys())
+            for key in keys[start_index:end_index + 1]:
+                del image_store_checkbox1[key]
         elif quiz_type == 700:
             keys = list(image_store_true.keys())
             for key in keys[start_index:end_index + 1]:
