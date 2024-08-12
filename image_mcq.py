@@ -6,7 +6,7 @@ from openai import OpenAI
 import requests
 from io import BytesIO
 from PIL import Image
-import random
+import random 
 
 # Load environment variables
 load_dotenv()
@@ -116,5 +116,5 @@ def get_image(image_key):
         logger.error(f"Image with key {image_key} not found")
         return jsonify({"error": "Image not found"}), 404
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
     app.run(debug=True)

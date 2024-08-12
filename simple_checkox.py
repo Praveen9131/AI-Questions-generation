@@ -1,90 +1,124 @@
 import os
-import json
+import logging
 from flask import Flask, request, jsonify
-from langchain.chains import LLMChain
-from langchain.chains import SequentialChain
 from dotenv import load_dotenv
-from langchain_community.callbacks import get_openai_callback
-from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
+from openai import OpenAI
 
+# Load environment variables
 load_dotenv()
-KEY = os.getenv("OPENAI_API_KEY")
-def generate_quizc(number, subject, tone):
-    llm = ChatOpenAI(openai_api_key=KEY, model_name="gpt-4", temperature=0.5)
-    
-    # Construct the predefined text for the quiz
-    
-    RESPONSE_JSON = {
-    "questions": [
-        {
-            "statement": "Question statement here",
-            "options": [
-                "[].Option 1",
-                "[].Option 2",
-                "[].Option 3",
-                "[].Option 4" "generate the []symbol for each option"
-            ],
-            "correct": ["Option 1", "Option 3"]  # List all correct options
-        }
-        # More questions as needed...
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Get OpenAI API key from environment variables
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    logger.error("OPENAI_API_KEY environment variable not set")
+    exit()
+
+# Initialize OpenAI client with API key
+client = OpenAI(api_key=openai_api_key)
+
+app = Flask(__name__)
+
+def generate_mcq(subject: str, tone: str):
+    """Generate a multiple-choice question (MCQ) with four text options."""
+    description_prompt = [
+        {"role": "system", "content": "You are an expert in generating educational content."},
+        {"role": "user", "content": f"Generate a clear and understandable question with exactly four options based on the subject '{subject}'. The question may have multiple correct answers. Each option should be related to the concept in the subject and in a '{tone}' tone. Use the following format:\n\n**Question:** [Question based on the subject]\n\n**Options:**\n1. [Option 1]\n2. [Option 2]\n3. [Option 3]\n4. [Option 4]\n\n**Correct Answers:** [Correct Options by number, separated by commas]\n\nEnsure that all four options are provided."}
     ]
-}
-   # Construct the template without using RESPONSE_JSON directly unless it's a variable you pass to LLMChain
-    TEMPLATE = f"""
-    
-    You are an expert checkbox maker. Create {number} checkbox-type questions for {subject} students in a {tone} tone. 
-    Each question should have multiple statements where more than one can be true. Ensure the questions are diverse and cover different aspects of {subject}.
-    Format the questions according to the provided JSON structure give me the output in arrayand dont show any question numbersplease give me in this format RESPONSE_JSON format of arrayand use the keywords only question,options ,answershow me first question then options then answer
-      dont generate question numbers 
-      [{
-          "question"
-          "options""show the 4 options in the format of a,b,c,d should be there"
-          "answer" 
-      }]use only this format dont use any other format
-       
-           
-         follow only this format
-            // More questions as needed...
-       
-    """
-    TEMPLATE2="""
-    You are an expert english grammarian and writer. Given a checkbox Quiz for {subject} students.\
-    You need to evaluate the complexity of the question and give a complete analysis of the quiz. Only use at max 50 words for complexity analysis. 
-    if the quiz is not at per with the cognitive and analytical abilities of the students,\
-    update the quiz questions which needs to be changed and change the tone such that it perfectly fits the student abilities
-    Quiz_checkbox:
-    {quiz}
-    
-    Check from an expert English Writer of the above quiz:
-    """
 
-    quiz_generation_prompt = PromptTemplate(
-        input_variables=[ "number", "subject", "tone" ,"response_json"],
-        template=TEMPLATE
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=description_prompt,
+            max_tokens=1000,
+            temperature=0.5
+        )
+        content = response.choices[0].message.content
 
-    quiz_chain = LLMChain(llm=llm, prompt=quiz_generation_prompt, output_key="quiz")
-    
-    quiz_evaluation_prompt=PromptTemplate(input_variables=["subject", "quiz"], template=TEMPLATE)
-    review_chain=LLMChain(llm=llm, prompt=quiz_evaluation_prompt, output_key="review", verbose=True)
-    generate_evaluate_chain=SequentialChain(chains=[quiz_chain, review_chain], input_variables=[ "number", "subject", "tone","response_json" ],
-                                        output_variables=["quiz", "review"], verbose=True,)
-    # Generate the quiz using the chain
-    response = generate_evaluate_chain({
-        
-        "number": number,
-        "subject": subject,
-        "tone": tone,
-        
-        "response_json": json.dumps(RESPONSE_JSON),
-        
-    })
-    #quiz=response.get("quiz")
-# Assume response.get("quiz") is supposed to return a JSON string
-    quiz_json = response.get("quiz")
-    quiz_data = json.loads(quiz_json)
+        question_section = content.split("**Question:**")[1].split("**Options:**")[0].strip()
+        options_section = content.split("**Options:**")[1].split("**Correct Answers:**")[0].strip()
+        correct_answers_section = content.split("**Correct Answers:**")[1].strip()
 
-# Check if quiz_json is None or empty and ensure it is a valid JSON string
-    return quiz_data
+        options_list = options_section.split('\n')
+        options_dict = {
+            f"option{i+1}": option.split('. ', 1)[-1].strip()  # Remove leading "1. ", "2. ", etc.
+            for i, option in enumerate(options_list)
+        }
+
+        # Extract the correct answer numbers, assuming they're formatted like "2, 3"
+        correct_answer_numbers = [int(num.strip()) for num in correct_answers_section.split(',')]
+        correct_answer_mapped = [f"option{num}" for num in correct_answer_numbers]
+
+        return {
+            "question": question_section,
+            "options": options_dict,
+            "correct_answers": correct_answer_mapped
+        }
+    except Exception as e:
+        logger.error(f"Error generating MCQ: {e}")
+        return {"error": "Failed to generate MCQ"}
+
+def generate_quizc(number, subject, tone):
+    """Generate custom content based on user-provided parameters."""
+    try:
+        if number < 1 or number > 10:  # Ensure number is within allowed range
+            return {"error": "Number of questions must be between 1 and 10"}, 400
+
+        mcqs = []
+        for _ in range(number):
+            mcq = generate_mcq(subject, tone)
+            if "error" in mcq:
+                return {"error": "Failed to generate MCQ"}, 500
+            mcqs.append(mcq)
+
+        return mcqs
+    except Exception as e:
+        logger.error(f"Error generating custom content: {e}")
+        return {"error": "Internal server error"}, 500
+
+@app.route('/custom', methods=['POST'])
+def custom_content():
+    """Endpoint to generate custom content based on user-provided parameters."""
+    try:
+        data = request.json
+        num_questions = int(data.get('number', 1))
+        subject = data.get('subject', 'default subject').strip('"')
+        tone = data.get('tone', 'neutral')
+
+        result = generate_quizc(num_questions, subject, tone)
+        
+        if isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], dict) and 'error' in result[0]:
+            return jsonify(result[0]), result[1]
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in custom content generation: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/', methods=['GET', 'POST'])
+def generate_content():
+    """Endpoint to generate content based on user-set parameters."""
+    try:
+        if request.method == 'POST':
+            data = request.json 
+            num_questions = int(data.get('number', 1))
+            subject = data.get('subject', 'default subject').strip('"')
+            tone = data.get('tone', 'neutral')
+        else:
+            num_questions = int(request.args.get('number', 1))
+            subject = request.args.get('subject', 'default subject').strip('"')
+            tone = request.args.get('tone', 'neutral')
+
+        mcqs = generate_quizc(num_questions, subject, tone)
+        if isinstance(mcqs, tuple) and len(mcqs) == 2 and isinstance(mcqs[0], dict) and 'error' in mcqs[0]:
+            return jsonify(mcqs[0]), mcqs[1]
+
+        return jsonify(mcqs)
+    except Exception as e:
+        logger.error(f"Error generating content: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
 

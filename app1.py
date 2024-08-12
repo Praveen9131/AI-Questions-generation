@@ -25,6 +25,10 @@ from image_checkbox import generate_custom_content_checkbox1,image_store_checkbo
 from image_checkbox1 import generate_custom_content_checkbox, image_store_checkbox
 from True_False_Radio_Btn_with_Image_Text_Question import generate_custom_content_true, image_store_true
 from image_radio_button import generate_custom_content_radio , image_store_radio
+from sub1 import generate_custom_content_sub1,image_store_sub1
+from sub2 import generate_custom_content_sub2,image_store_sub2
+from sub3 import generate_custom_content_sub3,image_store_sub3
+from sub4 import generate_custom_content_sub4,image_store_sub4
 # Load environment variables
 load_dotenv()
 KEY = os.getenv("OPENAI_API_KEY")
@@ -79,7 +83,7 @@ def generate_quiz_route():
 
         if quiz_type == 100:
             response = generate_quiz(number, subject, tone)
-            extract_quiz_details(response)  # Extract and print details for quiz type 100
+            #extract_quiz_details(response)  # Extract and print details for quiz type 100
         elif quiz_type == 200:
             response = generate_quizc(number, subject, tone)
             extract_quiz_details(response)  # Extract and print details for quiz type 200
@@ -101,6 +105,14 @@ def generate_quiz_route():
             response = generate_custom_content_true(number, subject, tone)
         elif quiz_type == 701:
             response = generate_custom_content_radio(number, subject, tone)
+        elif quiz_type == 800:
+            response = generate_custom_content_sub1(number, subject, tone)#checkbox type
+        elif quiz_type == 801:
+            response = generate_custom_content_sub2(number, subject, tone)#radio type
+        elif quiz_type == 802:
+            response = generate_custom_content_sub3(number, subject, tone)#checkbox image
+        elif quiz_type == 803:
+            response = generate_custom_content_sub4(number, subject, tone)#radio type
         else:
             raise ValueError("Invalid quiz type, please enter a correct quiz_type")
 
@@ -148,6 +160,26 @@ def get_image(image_key):
                 BytesIO(image_store_radio[image_key].getvalue()),
                 mimetype='image/png'
             )
+        elif quiz_type == 800 and image_key in image_store_sub1:
+            return send_file(
+                BytesIO(image_store_sub1[image_key].getvalue()),
+                mimetype='image/png'
+            )
+        elif quiz_type == 801 and image_key in image_store_sub2:
+            return send_file(
+                BytesIO(image_store_sub2[image_key].getvalue()),
+                mimetype='image/png'
+            )
+        elif quiz_type == 802 and image_key in image_store_sub3:
+            return send_file(
+                BytesIO(image_store_sub3[image_key].getvalue()),
+                mimetype='image/png'
+            )
+        elif quiz_type == 803 and image_key in image_store_sub4:
+            return send_file(
+                BytesIO(image_store_sub4[image_key].getvalue()),
+                mimetype='image/png'
+            )
         else:
             raise ValueError("Image with key not found")
 
@@ -186,6 +218,22 @@ def list_all_images():
             'image_store_radio': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=701, _external=True)}
                 for key in image_store_radio.keys()
+            ],
+          'image_store_sub1': [
+                {"key": key, "url": url_for('get_image', image_key=key, quiz_type=800, _external=True)}
+                for key in image_store_sub1.keys()
+            ],
+          'image_store_sub2': [
+                {"key": key, "url": url_for('get_image', image_key=key, quiz_type=801, _external=True)}
+                for key in image_store_sub2.keys()
+            ],
+          'image_store_sub3': [
+                {"key": key, "url": url_for('get_image', image_key=key, quiz_type=802, _external=True)}
+                for key in image_store_sub3.keys()
+            ],
+          'image_store_sub4': [
+                {"key": key, "url": url_for('get_image', image_key=key, quiz_type=803, _external=True)}
+                for key in image_store_sub4.keys()
             ],
         }
         return jsonify(images)
@@ -239,6 +287,22 @@ def delete_images():
             keys = list(image_store_radio.keys())
             for key in keys[start_index:end_index + 1]:
                 del image_store_radio[key]
+        elif quiz_type == 800:
+            keys = list(image_store_sub1.keys())
+            for key in keys[start_index:end_index + 1]:
+                del image_store_sub1[key]
+        elif quiz_type == 801:
+            keys = list(image_store_sub2.keys())
+            for key in keys[start_index:end_index + 1]:
+                del image_store_sub2[key]
+        elif quiz_type == 802:
+            keys = list(image_store_sub3.keys())
+            for key in keys[start_index:end_index + 1]:
+                del image_store_sub3[key]
+        elif quiz_type == 803:
+            keys = list(image_store_sub4.keys())
+            for key in keys[start_index:end_index + 1]:
+                del image_store_sub4[key]
         else:
             raise ValueError("Invalid quiz type for deletion")
         
