@@ -48,7 +48,7 @@ def download_and_resize_image(image_url, target_size, retries=3):
         if retries > 0:
             logger.info(f"Retrying download and resize, {retries} retries left.")
             return download_and_resize_image(image_url, target_size, retries - 1)
-        return None
+        return "placeholder_image_url"
 
 def generate_image(prompt: str, retries: int = 3):
     """Generate an image using the DALL-E model from OpenAI, with retry logic."""
@@ -71,10 +71,10 @@ def generate_image(prompt: str, retries: int = 3):
         return None
 
 def generate_mcq(subject: str, tone: str):
-    """Generate a multiple-choice question with multiple correct answers (checkbox-type) based on the subject, with image options."""
+    """Generate a checkbox question with multiple correct answers and image options based on the subject."""
     description_prompt = [
         {"role": "system", "content": "You are an expert in generating educational content."},
-        {"role": "user", "content": f"Generate a clear and understandable question based on the subject '{subject}'. The question must have two to four correct answers. Each option should be related to the concept in the subject and in a '{tone}' tone. Use the following format:\n\n**Question:** [Question based on the subject]\n\n**Options:**\n1. [Option 1 Description]\n2. [Option 2 Description]\n3. [Option 3 Description]\n4. [Option 4 Description]\n\n**Correct Answers:** [Correct Option numbers, separated by commas]\n\nEnsure that all four options are provided, and there are multiple correct answers (checkbox-type). The options should be descriptions of images to generate."}
+        {"role": "user", "content": f"Generate a clear and understandable checkbox question with exactly four options based on the subject '{subject}'. The question must have more than one correct answer. Each option should be related to the concept in the subject and in a '{tone}' tone. Use the following format:\n\n**Question:** [Question based on the subject]\n\n**Options:**\n1. [Option 1]\n2. [Option 2]\n3. [Option 3]\n4. [Option 4]\n\n**Correct Answers:** [Correct Option numbers separated by commas]\n\nEnsure that all four options are provided, and the correct answers should be a comma-separated list of numbers (e.g., 1, 3)."}
     ]
 
     try:
@@ -91,79 +91,126 @@ def generate_mcq(subject: str, tone: str):
         options_section = content.split("**Options:**")[1].split("**Correct Answers:**")[0].strip()
         correct_answers_section = content.split("**Correct Answers:**")[1].strip()
 
-        # Extracting options descriptions
+        # Extracting options
         options = options_section.split('\n')
         if len(options) != 4:
             raise ValueError("Generated options do not contain exactly 4 items")
 
-        option_descriptions = [option.split('. ', 1)[1].strip() for option in options]
+        option_prompts = [option.split('. ', 1)[1].strip() for option in options]
 
-        # Generate images for each option
-        option_images = []
-        for desc in option_descriptions:
-            image_url = generate_image(desc)
-            if not image_url:
-                raise ValueError("Failed to generate image for option")
-            image_key = download_and_resize_image(image_url, (270, 140))  # Option image size: 270x140 px
-            option_images.append(f"/image/{image_key}")
+        # Extracting the correct answer indices and ensuring they are valid integers
+        try:
+            correct_answer_indices = [int(x.strip()) for x in correct_answers_section.split(',')]
+            if not all(1 <= idx <= 4 for idx in correct_answer_indices):
+                raise ValueError("One or more correct answer indices are out of range")
+        except ValueError:
+            logger.error(f"Correct answers section could not be parsed as integers: {correct_answers_section}")
+            return {"error": "Failed to parse correct answers"}
 
-        # Extracting the correct answer indices
-        correct_answer_indices = parse_correct_answers(correct_answers_section)
+        correct_answers = [f"Option {idx}" for idx in correct_answer_indices]
 
-        # Ensure the number of correct answers is between 2 and 4
-        if len(correct_answer_indices) < 2:
-            additional_indices = list(set(range(4)) - set(correct_answer_indices))
-            correct_answer_indices += random.sample(additional_indices, 2 - len(correct_answer_indices))
-        elif len(correct_answer_indices) > 4:
-            correct_answer_indices = random.sample(correct_answer_indices, 4)
+        # Generate the main question image (750x319 px)
+        main_image_url = generate_image(question_section)
+        main_image_key = download_and_resize_image(main_image_url, (750, 319)) if main_image_url else "placeholder_image_url"
+        
+        # Retry if a placeholder image was returned
+        if main_image_key == "placeholder_image_url":
+            logger.info("Retrying main image generation due to placeholder.")
+            main_image_url = generate_image(question_section)
+            main_image_key = download_and_resize_image(main_image_url, (750, 319)) if main_image_url else "placeholder_image_url"
 
-        correct_answers = [f"Option {i + 1}" for i in correct_answer_indices]
+        if main_image_key == "placeholder_image_url":
+            return {"error": "Failed to generate main image after retries"}, 500
+
+        # Generate images for each option (270x140 px)
+        option_images = {}
+        for idx, prompt in enumerate(option_prompts, start=1):
+            image_url = generate_image(prompt)
+            image_key = download_and_resize_image(image_url, (270, 140)) if image_url else "placeholder_image_url"
+            
+            # Retry if a placeholder image was returned
+            if image_key == "placeholder_image_url":
+                logger.info(f"Retrying image generation for option {idx} due to placeholder.")
+                image_url = generate_image(prompt)
+                image_key = download_and_resize_image(image_url, (270, 140)) if image_url else "placeholder_image_url"
+
+            if image_key == "placeholder_image_url":
+                logger.error(f"Failed to store image for option {idx} after retries.")
+                return {"error": f"Failed to store image for option {idx} after retries"}, 500
+            
+            option_images[f"Option {idx}"] = f"/image/{image_key}"
 
         return {
             "question": question_section,
-            "options": option_images,
+            "main_image": f"/image/{main_image_key}",
+            "options": option_images,  # Return labeled image URLs
             "correct_answers": correct_answers
         }
     except Exception as e:
         logger.error(f"Error generating MCQ: {e}")
         return {"error": "Failed to generate MCQ"}
 
-def parse_correct_answers(correct_answers_section):
-    """Parse the correct answers section to extract indices."""
+@app.route('/custom', methods=['GET', 'POST'])
+def custom_content():
+    """Endpoint to generate custom content based on user-provided parameters."""
     try:
-        return [int(index.strip()) - 1 for index in correct_answers_section.split(',')]
-    except ValueError as e:
-        logger.error(f"Error parsing correct answers: {e}")
-        return []
+        if request.method == 'POST':
+            data = request.json
+            num_questions = int(data.get('number', 1))
+            subject = data.get('subject', 'default subject').strip('"')
+            tone = data.get('tone', 'neutral')
+        else:  # For GET method
+            num_questions = int(request.args.get('number', 1))
+            subject = request.args.get('subject', 'default subject').strip('"')
+            tone = request.args.get('tone', 'neutral')
+
+        result = generate_custom_content_sub4(num_questions, subject, tone)
+        
+        if isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], dict) and 'error' in result[0]:
+            return jsonify(result[0]), result[1]
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in custom content generation: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/image/<image_key>', methods=['GET'])
+def get_image(image_key):
+    """Endpoint to retrieve an image by its key."""
+    try:
+        image = image_store_sub4.get(image_key)
+        if not image:
+            return jsonify({"error": "Image not found"}), 404
+        return send_file(image, mimetype='image/png')
+    except Exception as e:
+        logger.error(f"Error retrieving image: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 def generate_custom_content_sub4(number, subject, tone):
     """Generate custom content based on user-provided parameters."""
     try:
-        if number < 1 or number > 10:  # Ensure number is within allowed range
+        if number < 1 or number > 100:  # Ensure number is within allowed range
             return {"error": "Number of questions must be between 1 and 10"}, 400
 
-        main_prompt = f"Generate a main question with context for the following subject: {subject}"
         main_question_response = generate_mcq(subject, tone)
         if "error" in main_question_response:
             return {"error": "Failed to generate main question"}, 500
         
-        main_image_url = generate_image(subject)
-        main_image_key = download_and_resize_image(main_image_url, (750, 319)) if main_image_url else "placeholder_image_url"  # Main question image size: 750x319 px
-        if main_image_key == "placeholder_image_url":
-            return {"error": "Failed to generate main image"}, 500
-
         questions = []
         for _ in range(number):
             sub_questions = []
-            for sub_idx in range(3):  # Each question has exactly 3 sub-questions
+            for sub_idx in range(2):  # Updated to generate exactly 2 sub-questions
                 sub_question = generate_mcq(subject, tone)
+                # Ensure that sub-questions always include the "question" key
+                if not sub_question.get("question"):
+                    sub_question["question"] = main_question_response["question"]
                 if not sub_question:
                     return {"error": f"Failed to generate sub-question {sub_idx + 1}"}, 500
                 sub_questions.append(sub_question)
 
             questions.append({
                 "main_question": main_question_response["question"],
-                "image": f"/image/{main_image_key}",
+                "image": main_question_response["main_image"],
                 "sub_questions": sub_questions
             })
 
@@ -191,6 +238,11 @@ def format_questions_as_sections(questions):
                 image_prompt = sub_question.get("question", "")
                 image_url = generate_image(image_prompt)
                 image_key = download_and_resize_image(image_url, (270, 140)) if image_url else "placeholder_image_url"  # Option image size: 270x140 px
+                if image_key == "placeholder_image_url":
+                    logger.info(f"Retrying image generation for sub-question {sub_idx + 1} due to placeholder.")
+                    image_url = generate_image(image_prompt)
+                    image_key = download_and_resize_image(image_url, (270, 140)) if image_url else "placeholder_image_url"
+
                 sub_question_formatted.append({
                     f"Sub Question No. {sub_idx + 1}": {
                         "image": f"/image/{image_key}",
@@ -202,6 +254,11 @@ def format_questions_as_sections(questions):
                 image_prompt = sub_question.get("question", "")
                 image_url = generate_image(image_prompt)
                 image_key = download_and_resize_image(image_url, (270, 140)) if image_url else "placeholder_image_url"  # Option image size: 270x140 px
+                if image_key == "placeholder_image_url":
+                    logger.info(f"Retrying image generation for sub-question {sub_idx + 1} due to placeholder.")
+                    image_url = generate_image(image_prompt)
+                    image_key = download_and_resize_image(image_url, (270, 140)) if image_url else "placeholder_image_url"
+
                 sub_question_formatted.append({
                     f"Sub Question No. {sub_idx + 1}": {
                         "question": sub_question.get("question", ""),
@@ -216,60 +273,5 @@ def format_questions_as_sections(questions):
             "sub_questions": sub_question_formatted
         })
     return formatted_questions
-
-@app.route('/custom', methods=['POST'])
-def custom_content():
-    """Endpoint to generate custom content based on user-provided parameters."""
-    try:
-        data = request.json
-        num_questions = int(data.get('number', 1))
-        subject = data.get('subject', 'default subject').strip('"')
-        tone = data.get('tone', 'neutral')
-
-        result = generate_custom_content_sub4(num_questions, subject, tone)
-        
-        if isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], dict) and 'error' in result[0]:
-            return jsonify(result[0]), result[1]
-        
-        return jsonify(result)
-    except Exception as e:
-        logger.error(f"Error in custom content generation: {e}")
-        return jsonify({"error": "Internal server error"}), 500
-
-@app.route('/', methods=['GET', 'POST'])
-def generate_content():
-    """Endpoint to generate content based on user-set parameters."""
-    try:
-        if request.method == 'POST':
-            data = request.json 
-            num_questions = int(data.get('number', 1))
-            subject = data.get('subject', 'default subject').strip('"')
-            tone = data.get('tone', 'neutral')
-        else:
-            num_questions = int(request.args.get('number', 1))
-            subject = request.args.get('subject', 'default subject').strip('"')
-            tone = request.args.get('tone', 'neutral')
-
-        result = generate_custom_content_sub4(num_questions, subject, tone)
-        
-        if isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], dict) and 'error' in result[0]:
-            return jsonify(result[0]), result[1]
-        
-        return jsonify(result)
-    except Exception as e:
-        logger.error(f"Error generating content: {e}")
-        return jsonify({"error": "Internal server error"}), 500
-
-@app.route('/image/<image_key>', methods=['GET'])
-def get_image(image_key):
-    """Endpoint to retrieve an image by its key."""
-    try:
-        image = image_store_sub4.get(image_key)
-        if not image:
-            return jsonify({"error": "Image not found"}), 404
-        return send_file(image, mimetype='image/png')
-    except Exception as e:
-        logger.error(f"Error retrieving image: {e}")
-        return jsonify({"error": "Internal server error"}), 500
 
 
