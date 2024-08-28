@@ -16,7 +16,7 @@ from image_to_image_mcq import (
     generate_image_options, 
     generate_mcq_with_image_options, 
     generate_custom_content, 
-    image_store
+    image_store_imcq
 )
 from images_txt import generate_custom_content1, image_store1
 from image_txt_checkbox import generate_custom_content11, image_store11

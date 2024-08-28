@@ -10,14 +10,7 @@ from openai import OpenAI
 from simple_mcq import generate_quiz
 from simple_checkox import generate_quizc
 from fill_in_the_blanks import generate_quiz1
-from image_to_image_mcq import (
-    download_and_resize_image as download_and_resize_image2, 
-    generate_image as generate_image2, 
-    generate_image_options, 
-    generate_mcq_with_image_options, 
-    generate_custom_content, 
-    image_store
-)
+from image_to_image_mcq import generate_custom_content,image_store_imcq
 from images_txt import generate_custom_content1, image_store1
 from image_txt_checkbox import generate_custom_content11, image_store11
 from sequence import generate_sequence_quiz
@@ -29,6 +22,7 @@ from sub1 import generate_custom_content_sub1,image_store_sub1
 from sub2 import generate_custom_content_sub2,image_store_sub2
 from sub3 import generate_custom_content_sub3,image_store_sub3
 from sub4 import generate_custom_content_sub4,image_store_sub4
+from appropriate import generate_custom_content_appro,image_store_appro
 # Load environment variables
 load_dotenv()
 KEY = os.getenv("OPENAI_API_KEY")
@@ -83,7 +77,8 @@ def generate_quiz_route():
 
         if quiz_type == 100:
             response = generate_quiz(number, subject, tone)
-            #extract_quiz_details(response)  # Extract and print details for quiz type 100
+            extract_quiz_details(response)
+            # Extract and print details for quiz type 100
         elif quiz_type == 200:
             response = generate_quizc(number, subject, tone)
             extract_quiz_details(response)  # Extract and print details for quiz type 200
@@ -95,16 +90,22 @@ def generate_quiz_route():
             response = generate_custom_content1(number, subject, tone)
         elif quiz_type == 501:
             response = generate_custom_content11(number, subject, tone)
+            extract_quiz_details(response)
         elif quiz_type == 600:
             response = generate_custom_content(number, subject, tone)
+            extract_quiz_details(response)
         elif quiz_type == 601:
             response = generate_custom_content_checkbox(number, subject, tone)#image checkbox
+            extract_quiz_details(response)
         elif quiz_type == 602:
             response = generate_custom_content_checkbox1(number, subject, tone)
+            extract_quiz_details(response)
         elif quiz_type == 700:
             response = generate_custom_content_true(number, subject, tone)
+            extract_quiz_details(response)
         elif quiz_type == 701:
             response = generate_custom_content_radio(number, subject, tone)
+            extract_quiz_details(response)
         elif quiz_type == 800:
             response = generate_custom_content_sub1(number, subject, tone)#checkbox type
         elif quiz_type == 801:
@@ -113,6 +114,8 @@ def generate_quiz_route():
             response = generate_custom_content_sub3(number, subject, tone)#checkbox image
         elif quiz_type == 803:
             response = generate_custom_content_sub4(number, subject, tone)#radio type
+        elif quiz_type == 900:
+            response = generate_custom_content_appro(number, subject, tone)#radio type
         else:
             raise ValueError("Invalid quiz type, please enter a correct quiz_type")
 
@@ -135,9 +138,9 @@ def get_image(image_key):
                 BytesIO(image_store11[image_key].getvalue()),
                 mimetype='image/png'
             )
-        elif quiz_type == 600 and image_key in image_store_true:
+        elif quiz_type == 600 and image_key in image_store_imcq:
             return send_file(
-                BytesIO(image_store_true[image_key].getvalue()),
+                BytesIO(image_store_imcq[image_key].getvalue()),
                 mimetype='image/png'
             )
         elif quiz_type == 601 and image_key in image_store_checkbox:
@@ -180,6 +183,11 @@ def get_image(image_key):
                 BytesIO(image_store_sub4[image_key].getvalue()),
                 mimetype='image/png'
             )
+        elif quiz_type == 900 and image_key in image_store_appro:
+            return send_file(
+                BytesIO(image_store_appro[image_key].getvalue()),
+                mimetype='image/png'
+            )
         else:
             raise ValueError("Image with key not found")
 
@@ -193,7 +201,7 @@ def list_all_images():
         images = {
             'image_store': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=600, _external=True)}
-                for key in image_store_true.keys()
+                for key in image_store_imcq.keys()
             ],
             'image_store1': [
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=500, _external=True)}
@@ -235,6 +243,10 @@ def list_all_images():
                 {"key": key, "url": url_for('get_image', image_key=key, quiz_type=803, _external=True)}
                 for key in image_store_sub4.keys()
             ],
+          'image_store_appro': [
+                {"key": key, "url": url_for('get_image', image_key=key, quiz_type=900, _external=True)}
+                for key in image_store_appro.keys()
+            ],
         }
         return jsonify(images)
     except Exception as e:
@@ -268,7 +280,7 @@ def delete_images():
             for key in keys[start_index:end_index + 1]:
                 del image_store11[key]
         elif quiz_type == 600:
-            keys = list(image_store_true.keys())
+            keys = list(image_store_imcq.keys())
             for key in keys[start_index:end_index + 1]:
                 del image_store_true[key]
         elif quiz_type == 601:
@@ -301,6 +313,10 @@ def delete_images():
                 del image_store_sub3[key]
         elif quiz_type == 803:
             keys = list(image_store_sub4.keys())
+            for key in keys[start_index:end_index + 1]:
+                del image_store_sub4[key]
+        elif quiz_type == 900:
+            keys = list(image_store_appro.keys())
             for key in keys[start_index:end_index + 1]:
                 del image_store_sub4[key]
         else:

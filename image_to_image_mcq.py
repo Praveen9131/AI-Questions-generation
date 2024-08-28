@@ -27,7 +27,7 @@ client = OpenAI(api_key=openai_api_key)
 app = Flask(__name__)
 
 # In-memory storage for images
-image_store = {}
+image_store_imcq = {}
 
 def download_and_resize_image(image_url, target_size):
     """Download an image from the given URL, resize it, and store it in-memory."""
@@ -40,8 +40,8 @@ def download_and_resize_image(image_url, target_size):
         output = BytesIO()
         resized_image.save(output, format='PNG')
         output.seek(0)
-        image_key = f"image_{len(image_store) + 1}.png"
-        image_store[image_key] = output
+        image_key = f"image_{len(image_store_imcq) + 1}.png"
+        image_store_imcq[image_key] = output
         return image_key
     except Exception as e:
         logger.error(f"Error resizing image: {e}")
@@ -231,13 +231,14 @@ def generate_content():
 @app.route('/image/<image_key>', methods=['GET'])
 def get_image(image_key):
     """Serve an image from in-memory storage."""
-    if image_key in image_store:
+    if image_key in image_store_imcq:
         return send_file(
-            BytesIO(image_store[image_key].getvalue()),
+            BytesIO(image_store_imcq[image_key].getvalue()),
             mimetype='image/png'
         )
     else:
         logger.error(f"Image with key {image_key} not found")
         return jsonify({"error": "Image not found"}), 404
 
-
+if __name__ == '__main__':
+    app.run(debug=True)
